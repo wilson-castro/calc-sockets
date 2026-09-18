@@ -1,0 +1,81 @@
+# dev executa tarefas pontuais (testes, geração de código, experimento).
+# Os serviços *-server e *-client permitem rodar servidor e cliente em
+# contêineres separados, que se enxergam pelo nome do serviço na rede do compose.
+name: calc-sockets
+
+x-go: &go
+  build: .
+  image: calc-sockets-dev:1
+  working_dir: /app
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  init: true
+  volumes:
+    - .:/app
+    - go-mod:/cache/go-mod
+    - go-build:/cache/go-build
+
+# Variáveis repassadas do host apenas quando definidas lá.
+x-passthrough: &passthrough
+  TZ: ${TZ:-UTC}
+  CALC_LOG_COLOR: ${CALC_LOG_COLOR:-always}
+  CALC_LOG_LEVEL: ${CALC_LOG_LEVEL:-}
+  CALC_LOSS_RATE: ${CALC_LOSS_RATE:-}
+  CALC_LOSS_SEED: ${CALC_LOSS_SEED:-}
+  CALC_REQUESTS: ${CALC_REQUESTS:-}
+  CALC_WORKLOAD_SEED: ${CALC_WORKLOAD_SEED:-}
+
+services:
+  dev:
+    <<: *go
+    profiles: [tools]
+    environment:
+      <<: *passthrough
+
+  udp-server:
+    <<: *go
+    command: sh -c "go build -o /tmp/calc-server-udp ./cmd/udp/server && exec /tmp/calc-server-udp"
+    ports: ["9000:9000/udp"]
+    environment:
+      <<: *passthrough
+
+  tcp-server:
+    <<: *go
+    command: sh -c "go build -o /tmp/calc-server-tcp ./cmd/tcp/server && exec /tmp/calc-server-tcp"
+    ports: ["9001:9001"]
+    environment:
+      <<: *passthrough
+
+  proto-server:
+    <<: *go
+    command: sh -c "go build -o /tmp/calc-server-proto ./cmd/proto/server && exec /tmp/calc-server-proto"
+    ports: ["9002:9002"]
+    environment:
+      <<: *passthrough
+
+  udp-client:
+    <<: *go
+    profiles: [clients]
+    command: go run ./cmd/udp/client
+    environment:
+      <<: *passthrough
+      CALC_SERVER_HOST: udp-server
+
+  tcp-client:
+    <<: *go
+    profiles: [clients]
+    command: go run ./cmd/tcp/client
+    environment:
+      <<: *passthrough
+      CALC_SERVER_HOST: tcp-server
+
+  proto-client:
+    <<: *go
+    profiles: [clients]
+    command: go run ./cmd/proto/client
+    environment:
+      <<: *passthrough
+      CALC_SERVER_HOST: proto-server
+
+volumes:
+  go-mod:
+  go-build:

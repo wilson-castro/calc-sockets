@@ -1,0 +1,34 @@
+{
+  "network": {
+    "listenHost": "0.0.0.0",
+    "serverHost": "127.0.0.1",
+    "udpPort": 9000,
+    "tcpPort": 9001,
+    "protoPort": 9002
+  },
+  "client": {
+    "requests": 20,
+    "udpTimeoutMs": 500,
+    "udpMaxAttempts": 5,
+    "dialTimeoutMs": 2000,
+    "ioTimeoutMs": 5000,
+    "workloadSeed": 0
+  },
+  "udp": {
+    "lossRate": 0.0,
+    "lossSeed": 0
+  },
+  "experiment": {
+    "lossRates": [0.0, 0.1, 0.3],
+    "seed": 2026,
+    "resultsDir": "results"
+  },
+  "live": {
+    "intervalMs": 300,
+    "lossRate": 0.2
+  },
+  "log": {
+    "level": "info",
+    "color": "auto"
+  }
+}
