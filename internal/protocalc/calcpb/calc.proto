@@ -1,0 +1,37 @@
+// Mensagens da Parte 4: a mesma calculadora das Partes 1 e 2, serializada em
+// binário. Cada mensagem trafega no TCP precedida do seu tamanho em varint
+// (formato "delimited" do protobuf), pois o TCP não preserva fronteiras.
+syntax = "proto3";
+
+package calc.v1;
+
+option go_package = "calcsockets/internal/protocalc/calcpb";
+
+// Operator substitui o símbolo textual (+, -, *, /). O valor zero é reservado
+// para "não informado", como recomenda o guia de estilo do proto3, e o servidor
+// o rejeita como operação inválida.
+enum Operator {
+  OPERATOR_UNSPECIFIED = 0;
+  OPERATOR_ADD = 1;
+  OPERATOR_SUBTRACT = 2;
+  OPERATOR_MULTIPLY = 3;
+  OPERATOR_DIVIDE = 4;
+}
+
+// CalcRequest equivale a CALC:<n>:<operando1>:<op>:<operando2>.
+message CalcRequest {
+  uint64 seq = 1;
+  double left = 2;
+  Operator op = 3;
+  double right = 4;
+}
+
+// CalcResponse equivale a RESULT:<n>:<resultado> ou ERROR:<n>:<mensagem>;
+// o oneof garante que apenas um dos dois esteja presente.
+message CalcResponse {
+  uint64 seq = 1;
+  oneof outcome {
+    double result = 2;
+    string error = 3;
+  }
+}
