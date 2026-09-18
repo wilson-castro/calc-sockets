@@ -1,0 +1,11 @@
+# O .dockerignore da raiz exclui tudo (a imagem de desenvolvimento não usa o
+# contexto). A imagem de produção precisa só do que o build copia.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!scripts/
+!config.json
+!README.md
+!RESPOSTAS.md

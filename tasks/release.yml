@@ -1,0 +1,77 @@
+# Versão de produção: binários estáticos por plataforma, pacotes com checksums e
+# imagem Docker enxuta cujo ponto de entrada é o console interativo.
+version: '3'
+
+vars:
+  VERSION: '{{.VERSION | default "1.0.0"}}'
+  PLATFORMS: '{{.PLATFORMS | default "linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64"}}'
+  IMAGE: 'calc-sockets:{{.VERSION}}'
+  DIST: dist
+  # Plataforma do host, usada para rodar o pacote local.
+  HOST_PLATFORM: '{{OS}}_{{ARCH}}'
+
+tasks:
+  build:
+    desc: Compila executáveis e testes para cada plataforma em dist/ (VERSION=, PLATFORMS=)
+    cmds:
+      - for: {var: PLATFORMS, split: ','}
+        cmd: >-
+          {{.IN_ENV}} sh scripts/build-release.sh
+          {{.DIST}}/calc-sockets_{{.VERSION}}_{{replace "/" "_" .ITEM}}
+          {{.VERSION}} {{splitList "/" .ITEM | first}} {{splitList "/" .ITEM | last}}
+
+  package:
+    desc: Gera um .tar.gz por plataforma e o SHA256SUMS em dist/
+    deps: [build]
+    cmds:
+      - >-
+        {{.IN_ENV}} sh -c 'cd {{.DIST}} && rm -f *.tar.gz SHA256SUMS &&
+        for dir in calc-sockets_{{.VERSION}}_*/; do tar -czf "${dir%/}.tar.gz" "${dir%/}"; done &&
+        sha256sum *.tar.gz > SHA256SUMS && cat SHA256SUMS'
+
+  console:
+    desc: Abre o console do pacote compilado para esta máquina
+    interactive: true
+    deps:
+      - task: build
+        vars: {PLATFORMS: '{{OS}}/{{ARCH}}'}
+    dir: '{{.DIST}}/calc-sockets_{{.VERSION}}_{{.HOST_PLATFORM}}'
+    cmds:
+      - ./calc
+
+  image:
+    desc: Constrói a imagem de produção (deploy/Dockerfile)
+    cmds:
+      - docker build -f deploy/Dockerfile --build-arg VERSION={{.VERSION}} -t {{.IMAGE}} -t calc-sockets:latest .
+
+  run:
+    desc: Abre o console interativo dentro da imagem de produção
+    interactive: true
+    cmds:
+      - docker run --rm -it --name calc-sockets-console {{.IMAGE}}
+
+  server:
+    desc: Sobe um servidor da imagem de produção com a porta publicada (PART=udp|tcp|proto, LOSS=)
+    interactive: true
+    requires:
+      vars: [PART]
+    vars:
+      PORT: '{{if eq .PART "udp"}}9000/udp{{else if eq .PART "tcp"}}9001{{else}}9002{{end}}'
+    cmds:
+      - >-
+        docker run --rm -it --name calc-sockets-{{.PART}}-server
+        -p {{splitList "/" .PORT | first}}:{{.PORT}} -e CALC_LOSS_RATE={{.LOSS}}
+        {{.IMAGE}} calc-server-{{.PART}}
+
+  verify:
+    desc: Verifica a imagem de produção (testes pré-compilados e demonstração roteirizada)
+    deps: [image]
+    cmds:
+      - docker run --rm {{.IMAGE}} calc 6 t 0
+      - docker run --rm -e CALC_REQUESTS=5 {{.IMAGE}} calc 1 0.3 2 4 0
+
+  clean:
+    desc: Remove dist/ e as imagens de produção
+    cmds:
+      - rm -rf {{.DIST}}
+      - docker image rm -f {{.IMAGE}} calc-sockets:latest 2>/dev/null || true
