@@ -1,0 +1,9 @@
+# Código comum às partes: regra de negócio, protocolo textual, métricas, config.
+version: '3'
+
+tasks:
+  test:
+    desc: Testa os pacotes compartilhados (calc, protocolo textual, métricas, carga)
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/shared/..., IN_ENV: '{{.IN_ENV}}'}

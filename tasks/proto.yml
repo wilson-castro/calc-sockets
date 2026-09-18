@@ -1,0 +1,33 @@
+# Parte 4: CalcServerProto e CalcClientProto.
+version: '3'
+
+tasks:
+  server:
+    desc: Sobe o CalcServerProto
+    interactive: true
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/proto/server{{else}}docker compose up --no-log-prefix proto-server{{end}}'
+
+  client:
+    desc: Roda o cliente contra o servidor iniciado por 'proto:server'
+    interactive: true
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/proto/client{{else}}docker compose run --rm proto-client{{end}}'
+
+  demo:
+    desc: Servidor e cliente Protobuf juntos no mesmo terminal
+    cmds:
+      - task: :lib:demo
+        vars: {PART: proto, IN_ENV: '{{.IN_ENV}}'}
+
+  test:
+    desc: Testes da parte (protocolo, concorrência e tratamento de erros)
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/protocalc/..., IN_ENV: '{{.IN_ENV}}'}
+
+  verify:
+    desc: Testes e demonstração desta parte
+    cmds:
+      - task: test
+      - task: demo

@@ -1,0 +1,76 @@
+# Ponto de entrada de todas as operações do projeto. Rode `./taskw` (ou `task`,
+# se estiver instalado) para ver a lista.
+#
+# Por padrão tudo roda dentro do contêiner de desenvolvimento (RUNTIME=docker),
+# que só exige Docker na máquina (o ./taskw compila o Task se preciso). Com Go 1.25+ e protoc instalados,
+# RUNTIME=native roda direto no host: `./taskw test RUNTIME=native`.
+version: '3'
+
+vars:
+  RUNTIME: '{{.RUNTIME | default "docker"}}'
+  # Prefixo que coloca um comando dentro do ambiente escolhido.
+  IN_ENV: '{{if eq .RUNTIME "native"}}{{else}}docker compose run --rm dev{{end}}'
+
+env:
+  HOST_UID: {sh: id -u}
+  HOST_GID: {sh: id -g}
+  # Fuso do host, para que os horários dos logs no contêiner batam com o relógio local.
+  TZ: {sh: 'echo "${TZ:-$(readlink /etc/localtime 2>/dev/null | sed "s|.*/zoneinfo/||")}"'}
+
+includes:
+  env: {taskfile: tasks/env.yml, dir: .}
+  lib: {taskfile: tasks/lib.yml, dir: ., internal: true}
+  shared: {taskfile: tasks/shared.yml, dir: .}
+  udp: {taskfile: tasks/udp.yml, dir: .}
+  tcp: {taskfile: tasks/tcp.yml, dir: .}
+  proto: {taskfile: tasks/proto.yml, dir: .}
+  experiment: {taskfile: tasks/experiment.yml, dir: .}
+  console: {taskfile: tasks/console.yml, dir: .}
+  release: {taskfile: tasks/release.yml, dir: .}
+
+tasks:
+  default:
+    desc: Lista as tarefas disponíveis
+    silent: true
+    cmds:
+      - '{{.TASK_EXE}} --list'
+
+  setup:
+    desc: Prepara o ambiente do zero (imagem, dependências e código protobuf)
+    cmds:
+      - task: env:setup
+
+  stop:
+    desc: Para servidores, clientes e demos em execução
+    cmds:
+      - task: env:stop
+
+  clean:
+    desc: Para a execução e remove os binários gerados em bin/ e dist/ (results/ é preservado)
+    cmds:
+      - task: env:clean
+
+  test:
+    desc: Roda os testes de todas as partes, agrupados por parte
+    cmds:
+      - task: shared:test
+      - task: udp:test
+      - task: tcp:test
+      - task: proto:test
+      - task: experiment:test
+      - task: console:test
+
+  console:
+    desc: Abre o console interativo (menu com todas as partes, testes e painel em tempo real)
+    interactive: true
+    cmds:
+      - task: console:run
+
+  verify:
+    desc: Verificação completa (formatação, vet, testes e demonstração de cada parte)
+    cmds:
+      - task: env:lint
+      - task: test
+      - task: udp:demo
+      - task: tcp:demo
+      - task: proto:demo

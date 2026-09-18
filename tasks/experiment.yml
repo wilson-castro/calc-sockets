@@ -1,0 +1,19 @@
+# Parte 3: experimento UDP 0%/10%/30% vs. TCP, com a comparação de tamanhos da Parte 4.
+version: '3'
+
+tasks:
+  run:
+    desc: Executa o experimento e grava results/experiment.md e results/experiment.json
+    cmds:
+      - '{{.IN_ENV}} go run ./cmd/experiment'
+
+  test:
+    desc: Testa o executor do experimento com timeouts curtos
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/experiment/..., IN_ENV: '{{.IN_ENV}}'}
+
+  report:
+    desc: Mostra o último relatório gerado
+    cmds:
+      - cat results/experiment.md

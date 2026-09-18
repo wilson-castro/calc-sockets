@@ -1,0 +1,33 @@
+# Parte 2: CalcServerTCP e CalcClientTCP.
+version: '3'
+
+tasks:
+  server:
+    desc: Sobe o CalcServerTCP
+    interactive: true
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/tcp/server{{else}}docker compose up --no-log-prefix tcp-server{{end}}'
+
+  client:
+    desc: Roda o cliente contra o servidor iniciado por 'tcp:server'
+    interactive: true
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/tcp/client{{else}}docker compose run --rm tcp-client{{end}}'
+
+  demo:
+    desc: Servidor e cliente TCP juntos no mesmo terminal
+    cmds:
+      - task: :lib:demo
+        vars: {PART: tcp, IN_ENV: '{{.IN_ENV}}'}
+
+  test:
+    desc: Testes da parte (protocolo, concorrência e tratamento de erros)
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/tcp/..., IN_ENV: '{{.IN_ENV}}'}
+
+  verify:
+    desc: Testes e demonstração desta parte
+    cmds:
+      - task: test
+      - task: demo

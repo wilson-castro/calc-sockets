@@ -1,0 +1,35 @@
+# Parte 1: CalcServerUDP e CalcClientUDP.
+version: '3'
+
+tasks:
+  server:
+    desc: Sobe o CalcServerUDP (LOSS=0.1 define a perda simulada)
+    interactive: true
+    env:
+      CALC_LOSS_RATE: '{{.LOSS}}'
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/udp/server{{else}}docker compose up --no-log-prefix udp-server{{end}}'
+
+  client:
+    desc: Roda o cliente contra o servidor iniciado por 'udp:server'
+    interactive: true
+    cmds:
+      - '{{if eq .RUNTIME "native"}}go run ./cmd/udp/client{{else}}docker compose run --rm udp-client{{end}}'
+
+  demo:
+    desc: Servidor e cliente UDP juntos no mesmo terminal (aceita LOSS=0.3)
+    cmds:
+      - task: :lib:demo
+        vars: {PART: udp, LOSS: '{{.LOSS}}', IN_ENV: '{{.IN_ENV}}'}
+
+  test:
+    desc: Testes da parte (protocolo, concorrência e tratamento de erros)
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/udp/..., IN_ENV: '{{.IN_ENV}}'}
+
+  verify:
+    desc: Testes e demonstração desta parte
+    cmds:
+      - task: test
+      - task: demo

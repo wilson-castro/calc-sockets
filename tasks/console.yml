@@ -1,0 +1,22 @@
+# Console interativo e painel em tempo real, a partir do código-fonte.
+# A versão empacotada do mesmo console está em tasks/release.yml.
+version: '3'
+
+tasks:
+  run:
+    desc: Abre o console interativo (menu com todas as partes, testes e painel)
+    interactive: true
+    cmds:
+      - '{{.IN_ENV}} go run ./cmd/calc'
+
+  live:
+    desc: Abre direto o painel em tempo real dos três protocolos
+    interactive: true
+    cmds:
+      - '{{.IN_ENV}} go run ./cmd/calc 5'
+
+  test:
+    desc: Testa o console e o painel (menu roteirizado, renderização e painel com sockets reais)
+    cmds:
+      - task: :lib:test
+        vars: {PACKAGES: ./internal/interactive/... ./internal/live/..., IN_ENV: '{{.IN_ENV}}'}

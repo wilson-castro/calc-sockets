@@ -1,0 +1,29 @@
+# Tarefas internas reutilizadas pelos Taskfiles das partes.
+version: '3'
+
+tasks:
+  demo:
+    desc: Sobe o servidor da parte em segundo plano, roda o cliente e encerra o servidor
+    internal: true
+    requires:
+      vars: [PART, IN_ENV]
+    env:
+      CALC_LOSS_RATE: '{{.LOSS}}'
+    cmds:
+      - >-
+        {{.IN_ENV}} sh -c '
+        go build -o bin/calc-server-{{.PART}} ./cmd/{{.PART}}/server &&
+        go build -o bin/calc-client-{{.PART}} ./cmd/{{.PART}}/client &&
+        { bin/calc-server-{{.PART}} & server=$!;
+        sleep 0.5;
+        bin/calc-client-{{.PART}}; status=$?;
+        kill -TERM $server; wait $server;
+        exit $status; }'
+
+  test:
+    desc: Roda os testes de um conjunto de pacotes
+    internal: true
+    requires:
+      vars: [PACKAGES, IN_ENV]
+    cmds:
+      - '{{.IN_ENV}} go test -count=1 -race -v {{.PACKAGES}}'

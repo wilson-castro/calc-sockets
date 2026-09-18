@@ -1,0 +1,41 @@
+#!/bin/sh
+# Wrapper do Task: permite usar o projeto só com Docker instalado.
+#
+# 1. Se o comando `task` existir no PATH, usa-o.
+# 2. Senão, usa .tools/task, compilado na primeira execução dentro do contêiner de
+#    desenvolvimento para o sistema e a arquitetura desta máquina, na versão
+#    fixada em tools/go.mod.
+#
+# Uso: ./taskw [tarefa] [VAR=valor ...], exatamente como `task`.
+set -eu
+
+root=$(cd "$(dirname "$0")" && pwd)
+local_task="$root/.tools/task"
+
+if [ -z "${TASKW_IGNORE_PATH:-}" ] && command -v task >/dev/null 2>&1; then
+  exec task "$@"
+fi
+
+if [ ! -x "$local_task" ]; then
+  command -v docker >/dev/null 2>&1 || { echo "taskw: instale o Docker ou o Task (https://taskfile.dev)" >&2; exit 1; }
+
+  case "$(uname -s)" in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) echo "taskw: sistema $(uname -s) sem suporte; use WSL ou instale o Task" >&2; exit 1 ;;
+  esac
+  case "$(uname -m)" in
+    x86_64 | amd64) arch=amd64 ;;
+    aarch64 | arm64) arch=arm64 ;;
+    *) echo "taskw: arquitetura $(uname -m) sem suporte" >&2; exit 1 ;;
+  esac
+
+  echo "taskw: compilando o Task para $os/$arch no contêiner (só na primeira vez)..." >&2
+  compose="docker compose --project-directory $root -f $root/docker-compose.yml"
+  export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+  $compose build dev >&2
+  $compose run --rm -T -e GOOS="$os" -e GOARCH="$arch" -e CGO_ENABLED=0 dev \
+    sh -c 'cd tools && go build -trimpath -o ../.tools/task github.com/go-task/task/v3/cmd/task' >&2
+fi
+
+exec "$local_task" "$@"
