@@ -7,7 +7,7 @@
     "protoPort": 9002
   },
   "client": {
-    "requests": 20,
+    "requests": 30,
     "udpTimeoutMs": 500,
     "udpMaxAttempts": 5,
     "dialTimeoutMs": 2000,

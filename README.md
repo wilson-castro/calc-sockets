@@ -155,7 +155,7 @@ maior precedência:
 
 | Parâmetro | `config.json` | Variável | Padrão |
 | --- | --- | --- | --- |
-| Número de requisições (N) | `client.requests` | `CALC_REQUESTS` | 20 |
+| Número de requisições (N) | `client.requests` | `CALC_REQUESTS` | 30 |
 | Timeout antes de retransmitir | `client.udpTimeoutMs` | `CALC_UDP_TIMEOUT_MS` | 500 |
 | Máximo de tentativas UDP | `client.udpMaxAttempts` | `CALC_UDP_MAX_ATTEMPTS` | 5 |
 | Taxa de perda do servidor UDP | `udp.lossRate` | `CALC_LOSS_RATE` (ou `LOSS=` no task) | 0.0 |

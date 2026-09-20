@@ -81,12 +81,12 @@ type Log struct {
 	Color string `json:"color"`
 }
 
-// Default devolve a configuração pedida no enunciado: N=20, timeout de 500 ms e 5 tentativas.
+// Default devolve a configuração pedida no enunciado: N=30, timeout de 500 ms e 5 tentativas.
 func Default() Config {
 	return Config{
 		Network: Network{ListenHost: "0.0.0.0", ServerHost: "127.0.0.1", UDPPort: 9000, TCPPort: 9001, ProtoPort: 9002},
 		Client: Client{
-			Requests:       20,
+			Requests:       30,
 			UDPTimeoutMS:   500,
 			UDPMaxAttempts: 5,
 			DialTimeoutMS:  2000,

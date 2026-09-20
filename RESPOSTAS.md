@@ -1,6 +1,6 @@
 # Respostas e análise
 
-Os números abaixo vêm de `./taskw experiment:run`, com N = 20, timeout de 500 ms, até 5
+Os números abaixo vêm de `./taskw experiment:run`, com N = 30, timeout de 500 ms, até 5
 tentativas e seed 2026. O relatório completo, com cada requisição, está em
 [results/experiment.md](results/experiment.md). Servidor e cliente rodaram na mesma
 máquina (loopback), então o RTT sem perda mede basicamente o custo do sistema
@@ -10,37 +10,43 @@ operacional e da aplicação, não da rede física.
 
 | Execução | Tempo total | RTT médio | RTT máx | Retransmissões | Perdidas |
 | --- | --- | --- | --- | --- | --- |
-| UDP, perda 0% | 4,2 ms | 0,17 ms | 0,53 ms | 0 | 0/20 |
-| UDP, perda 10% | 1006,7 ms | 50,3 ms | 501,2 ms | 2 | 0/20 |
-| UDP, perda 30% | 4014,1 ms | 200,6 ms | 1002,3 ms | 8 | 0/20 |
-| TCP | 2,8 ms | 0,11 ms | 0,39 ms | não se aplica | 0/20 |
+| UDP, perda 0% | 3,7 ms | 0,096 ms | 0,35 ms | 0 | 0/30 |
+| UDP, perda 10% | 2011,1 ms | 67,0 ms | 501,4 ms | 4 | 0/30 |
+| UDP, perda 30% | 7020,0 ms | 233,9 ms | 2004,1 ms | 14 | 0/30 |
+| TCP | 3,0 ms | 0,073 ms | 0,24 ms | não se aplica | 0/30 |
 
 ### O que os números mostram
 
-**Sem perda, UDP e TCP empatam.** A diferença entre 0,17 ms e 0,11 ms de RTT médio é
+**Sem perda, UDP e TCP empatam.** A diferença entre 0,096 ms e 0,073 ms de RTT médio é
 ruído de escalonamento. O handshake do TCP acontece uma única vez, antes da sequência,
-e é diluído nas 20 requisições.
+e é diluído nas 30 requisições.
 
 **Com perda, o tempo total é quase só espera de timeout.** Cada retransmissão custa um
 timeout inteiro (500 ms) antes do reenvio. Por isso o tempo total fica perto de
-`retransmissões × 500 ms`: 2 × 500 ≈ 1007 ms e 8 × 500 ≈ 4014 ms. O processamento
-das 20 requisições leva poucos milissegundos. O RTT máximo de 1002 ms, no cenário de
-30%, é uma requisição perdida duas vezes seguidas.
+`retransmissões × 500 ms`: 4 × 500 ≈ 2011 ms e 14 × 500 ≈ 7020 ms. O processamento
+das 30 requisições leva poucos milissegundos. O RTT máximo de 2004 ms, no cenário de
+30%, é uma requisição que só foi respondida na quinta e última tentativa permitida.
 
 **As retransmissões batem com o esperado.** Se cada envio se perde com probabilidade
 *p*, o número esperado de retransmissões por requisição é aproximadamente
 *p* / (1 − *p*):
 
-| Perda | Esperado para 20 requisições | Medido |
+| Perda | Esperado para 30 requisições | Medido |
 | --- | --- | --- |
-| 10% | 20 × 0,1 / 0,9 ≈ 2,2 | 2 |
-| 30% | 20 × 0,3 / 0,7 ≈ 8,6 | 8 |
+| 10% | 30 × 0,1 / 0,9 ≈ 3,3 | 4 |
+| 30% | 30 × 0,3 / 0,7 ≈ 12,9 | 14 |
 
 **Nenhuma requisição foi perdida definitivamente, mas isso pode acontecer.** Uma
 requisição só é abandonada se as 5 tentativas se perderem, o que ocorre com
 probabilidade *p*⁵. Com 10% de perda isso dá 0,001% por requisição. Com 30%, dá 0,24%
-por requisição, ou cerca de 4,7% de chance de ao menos uma perda definitiva nas 20.
-O teste `TestExhaustedAttemptsMarkRequestAsLost` força esse caso com 100% de perda.
+por requisição, ou cerca de 7,0% de chance de ao menos uma perda definitiva nas 30.
+No cenário de 30% uma requisição chegou perto disso: precisou das cinco tentativas.
+O teste `TestExhaustedAttemptsMarkRequestAsLost` força o caso limite com 100% de perda.
+
+**Sem retransmissão, a perda vira perda definitiva.** Repetindo o experimento com
+`client.udpMaxAttempts` em 1, toda requisição cujo datagrama foi descartado ficou sem
+resposta: 3 de 30 com perda de 10% e 9 de 30 com perda de 30%. O cliente não recebe
+erro, apenas o silêncio do timeout.
 
 **O TCP não precisou de nenhuma retransmissão na aplicação.** Esta comparação tem um
 limite: a perda simulada foi aplicada só ao servidor UDP, como pede o enunciado, e o
@@ -70,7 +76,7 @@ como atraso.
 **O que custa resolver isso:**
 
 - **Latência na perda.** Recuperar um pacote exige esperar um timeout ou os ACKs
-  duplicados. No experimento, cada perda custou 500 ms, cerca de 3.000 vezes o RTT
+  duplicados. No experimento, cada perda custou 500 ms, cerca de 5.000 vezes o RTT
   normal. O TCP ajusta o RTO ao RTT medido e costuma esperar menos que um timeout fixo
   de aplicação, mas o princípio é o mesmo.
 - **Estabelecimento de conexão.** O TCP gasta um RTT no *three-way handshake* antes do
@@ -100,8 +106,8 @@ calculadora, em transferência de arquivos ou em RPC.
 
 | Formato | Requisição (média) | Resposta (média) | Total por troca | vs. texto |
 | --- | --- | --- | --- | --- |
-| Texto (Parte 2) | 17,8 B | 19,6 B | 37,4 B | referência |
-| Protobuf (Parte 4) | 21,9 B | 10,9 B | 32,8 B | −12,2% |
+| Texto (Parte 2) | 17,8 B | 19,8 B | 37,6 B | referência |
+| Protobuf (Parte 4) | 21,9 B | 10,9 B | 32,9 B | −12,7% |
 
 O protobuf não é menor em todas as mensagens. O resultado depende do tipo dos dados:
 
@@ -109,7 +115,7 @@ O protobuf não é menor em todas as mensagens. O resultado depende do tipo dos 
   sempre em 8 bytes mais 1 byte de tag. Um operando pequeno como `10` custa 2 bytes no
   texto e 9 no protobuf. A requisição tem dois operandos, e o gerador de carga sorteia
   70% deles como inteiros de 0 a 1000, que ocupam no máximo 4 bytes em texto.
-- **A resposta ficou 44% menor.** Um resultado como `0.10255952380952382` ocupa 19
+- **A resposta ficou 45% menor.** Um resultado como `0.10255952380952382` ocupa 19
   bytes em texto e os mesmos 9 bytes em binário. Divisões e multiplicações decimais
   geram resultados longos, e aí o formato binário ganha. O prefixo textual `RESULT:`
   também desaparece.
@@ -128,5 +134,5 @@ sem quebrar clientes antigos. O custo é a etapa de geração de código com `pr
 necessidade de enquadramento explícito no TCP, feito com um prefixo varint de tamanho.
 Mensagens binárias também não podem ser inspecionadas com `nc`.
 
-O RTT com protobuf (0,20 ms) ficou na mesma ordem do texto (0,11 ms). Com 20 amostras em
-loopback, essa diferença está dentro do ruído de medição.
+O RTT com protobuf (0,109 ms) ficou na mesma ordem do texto (0,073 ms). Com 30 amostras
+em loopback, essa diferença está dentro do ruído de medição.
